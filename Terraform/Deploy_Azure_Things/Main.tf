@@ -11,7 +11,6 @@ module "AZVNET" {
   resource_group_name = var.DeployAZVNET.resource_group_name
   location = var.DeployAZVNET.location
   cidrblock = var.DeployAZVNET.cidrblock
-  dns_servers = var.DeployAZVNET.dns_servers
 
   privatesubnetname = var.DeployAZVNET.privatesubnetname
   privatesubnetcidr = var.DeployAZVNET.privatesubnetcidr

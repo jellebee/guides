@@ -26,7 +26,6 @@ variable "DeployAZVNET" {
     location = "West Europe"
     resource_group_name = "CloudOps_RG"
     cidrblock = ["10.0.0.0/16"]
-    dns_servers = ["10.0.0.4", "10.0.0.5"]
 
     privatesubnetname = "CloudOps_Private_Subnet_1"
     privatesubnetcidr = "10.0.1.0/24"
