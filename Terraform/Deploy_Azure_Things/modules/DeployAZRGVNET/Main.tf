@@ -17,6 +17,10 @@ resource "azurerm_virtual_network" "vnet" {
     name = var.publicsubnetname
     address_space = var.publicsubnetcidr
   }
+  firewallsubnet = {
+    name = var.firewallsubnetname
+    address_space = var.firewallsubnetcidr
+  }
 
   tags = {
     Team = var.teamtag

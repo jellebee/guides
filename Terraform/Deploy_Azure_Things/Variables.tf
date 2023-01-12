@@ -8,8 +8,18 @@ variable "DeployAZBACKUP" {
 variable "DeployAZFW" {
     type = map(any)
     default = {
+    
+    pub_ip_allo_method = "Static"
+    pub_ip_sku = "Standard"
+    pub_ip_name = "testpip"
+
+    fwname = "MyFW"
+    fwsubnet = ""
+    fwsku_tier = ""
+    sku_name = "AZFW CloudOps"
+
     typetag = "Azure FireWall"
-    team = "Cloud Operations (CloudOps)"
+    teamtag = "Cloud Operations (CloudOps)"
     }
 }
 variable "DeployAZPolicy" {
@@ -31,6 +41,8 @@ variable "DeployAZRGVNET" {
     privatesubnetcidr = "10.0.1.0/24"
     publicsubnetname = "CloudOps_Public_Subnet_1"
     publicsubnetcidr = "10.0.100.0/24"
+    firewallsubnetname = "Firewall_Subnet_1"
+    fwsubnetcidr = "10.0.200.0/24"
 
     typetag = "VNET"
     teamtag = "Cloud Operations (CloudOps)"
