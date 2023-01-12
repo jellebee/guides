@@ -1,24 +1,18 @@
-module "AZRG" {
-  source = "./modules/DeployAZRG"
-  
-  name = var.DeployRG.name
-  location = var.DeployRG.location
-}
-module "AZVNET" {
-  source = "./modules/DeployAZVNET"
+module "AZRGVNET" {
+  source = "./modules/DeployAZRGVNET"
+ 
+  resource_group_name = var.DeployAZRGVNET.resource_group_name
+  location = var.DeployAZRGVNET.location
+  vnet_name = var.DeployAZRGVNET.vnet_name
+  cidrblock = var.DeployAZRGVNET.cidrblock
 
-  vnet_name = var.DeployAZVNET.vnet_name
-  resource_group_name = var.DeployAZVNET.resource_group_name
-  location = var.DeployAZVNET.location
-  cidrblock = var.DeployAZVNET.cidrblock
+  privatesubnetname = var.DeployAZRGVNET.privatesubnetname
+  privatesubnetcidr = var.DeployAZRGVNET.privatesubnetcidr
+  publicsubnetname = var.DeployAZRGVNET.publicsubnetname
+  publicsubnetcidr = var.DeployAZRGVNET.privatesubnetcidr
 
-  privatesubnetname = var.DeployAZVNET.privatesubnetname
-  privatesubnetcidr = var.DeployAZVNET.privatesubnetcidr
-  publicsubnetname = var.DeployAZVNET.publicsubnetname
-  publicsubnetcidr = var.DeployAZVNET.privatesubnetcidr
-
-  teamtag = var.DeployAZVNET.teamtag
-  typetag = var.DeployAZVNET.typetag
+  teamtag = var.DeployAZRGVNET.teamtag
+  typetag = var.DeployAZRGVNET.typetag
 
 }
 module "AZBACKUP" {

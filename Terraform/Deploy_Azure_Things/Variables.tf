@@ -19,12 +19,12 @@ variable "DeployAZPolicy" {
     team = "Cloud Operations (CloudOps)"
     }
 }
-variable "DeployAZVNET" {
+variable "DeployAZRGVNET" {
     type = map(any)
     default = {
-    vnet_name = "CloudOps_VNET"
-    location = "West Europe"
     resource_group_name = "CloudOps_RG"
+    location = "West Europe"
+    vnet_name = "CloudOps_VNET"
     cidrblock = ["10.0.0.0/16"]
 
     privatesubnetname = "CloudOps_Private_Subnet_1"
@@ -40,15 +40,6 @@ variable "DeployAZVM" {
     type = map(any)
     default = {
     typetag = "Azure Virtual Machine"
-    team = "Cloud Operations (CloudOps)"
-    }
-}
-variable "DeployRG" {
-    type = map(any)
-    default = {
-    name = "CloudOps_RG"
-    location = "West Europe"
-    typetag = "Azure Resource Group"
     team = "Cloud Operations (CloudOps)"
     }
 }
