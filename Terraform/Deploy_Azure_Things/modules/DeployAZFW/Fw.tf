@@ -15,7 +15,7 @@ resource "azurerm_firewall" "AZ_FW" {
 
   ip_configuration {
     name                 = var.ip_config_name
-    subnet_id            = var.fwsubnet
+    subnet_id            = var.fwsubnetid
     public_ip_address_id = azurerm_public_ip.AZ_Pub_IP.id
   }
 }

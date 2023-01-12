@@ -7,7 +7,7 @@ variable "fwname" {}
 variable "vnet_name" {}
 variable "sku_tier" {}
 variable "sku_name" {}
-variable "fwsubnet" {}
+variable "fwsubnetid" {}
 variable "pub_ipaddress" {}
 variable "ip_config_name" {}
 variable "teamtag" {}
