@@ -7,7 +7,20 @@ module "AZRG" {
 module "AZVNET" {
   source = "./modules/DeployAZVNET"
 
-  vnet_name = var.network
+  vnet_name = var.DeployAZVNET.vnet_name
+  resource_group_name = var.DeployAZVNET.resource_group_name
+  location = var.DeployAZVNET.location
+  cidrblock = var.DeployAZVNET.cidrblock
+  dns_servers = var.DeployAZVNET.dns_servers
+
+  privatesubnetname = var.DeployAZVNET.privatesubnetname
+  privatesubnetcidr = var.DeployAZVNET.privatesubnetcidr
+  publicsubnetname = var.DeployAZVNET.publicsubnetname
+  publicsubnetcidr = var.DeployAZVNET.privatesubnetcidr
+
+  teamtag = var.DeployAZVNET.teamtag
+  typetag = var.DeployAZVNET.typetag
+
 }
 module "AZBACKUP" {
   source = "./modules/DeployAZBACKUP"
