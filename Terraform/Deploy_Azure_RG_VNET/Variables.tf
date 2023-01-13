@@ -1,3 +1,13 @@
+variable "subscriptiondetails" {
+  type = map(any)
+  default = {
+    #Set the variables here for a specific subscription to be used
+    subscription_id = ""
+    tenant_id       = ""
+    client_id       = ""
+    client_secret   = ""
+  }
+}
 variable "DeployAZRGVNET" {
   type = map(any)
   default = {
