@@ -7,8 +7,14 @@ variable "fwname" {}
 variable "vnet_name" {}
 variable "sku_tier" {}
 variable "sku_name" {}
-variable "fwsubnetid" {}
-variable "pub_ipaddress" {}
 variable "ip_config_name" {}
+variable "cidrblock" {}
+variable "privatesubnetname" {}
+variable "privatesubnetcidr" {}
+variable "publicsubnetname" {}
+variable "publicsubnetcidr" {}
+variable "firewallsubnetname" {}
+variable "firewallsubnetcidr" {}
 variable "teamtag" {}
-variable "typetag" {}
+variable "typevnettag" {}
+variable "typefwtag" {}

@@ -14,12 +14,8 @@ variable "DeployAZRGVNET" {
 variable "AZVNET_Address_Ranges" {
   type = map(any)
   default = {
-
-    cidrblock = ["10.0.0.0/16"]
-
-
+    cidrblock         = ["10.0.0.0/16"]
     privatesubnetcidr = ["10.0.1.0/24"]
-
-    publicsubnetcidr = ["10.0.100.0/24"]
+    publicsubnetcidr  = ["10.0.100.0/24"]
   }
 }
