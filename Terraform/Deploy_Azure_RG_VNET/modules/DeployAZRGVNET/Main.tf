@@ -5,7 +5,7 @@ resource "azurerm_resource_group" "rg" {
 
 resource "azurerm_virtual_network" "cloudops_vnet" {
   resource_group_name = var.resource_group_name
-  location            = var.location
+  location            = azurerm_resource_group.rg.location
   name                = var.vnet_name
   address_space       = var.cidrblock
 
@@ -17,21 +17,14 @@ resource "azurerm_virtual_network" "cloudops_vnet" {
 
 resource "azurerm_subnet" "privatesubnet" {
   name                 = var.privatesubnetname
-  resource_group_name  = var.location
+  resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.cloudops_vnet.name
   address_prefixes     = var.privatesubnetcidr
 }
 
 resource "azurerm_subnet" "publicsubnet" {
   name                 = var.publicsubnetname
-  resource_group_name  = var.location
+  resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.cloudops_vnet.name
   address_prefixes     = var.publicsubnetcidr
-}
-
-resource "azurerm_subnet" "firewallsubnet" {
-  name                 = var.firewallsubnetname
-  resource_group_name  = var.location
-  virtual_network_name = azurerm_virtual_network.cloudops_vnet.name
-  address_prefixes     = var.firewallsubnetcidr
 }

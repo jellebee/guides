@@ -6,7 +6,5 @@ variable "privatesubnetname" {}
 variable "privatesubnetcidr" {}
 variable "publicsubnetname" {}
 variable "publicsubnetcidr" {}
-variable "firewallsubnetname" {}
-variable "firewallsubnetcidr" {}
 variable "teamtag" {}
 variable "typetag" {}
