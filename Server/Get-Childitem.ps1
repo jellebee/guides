@@ -8,7 +8,6 @@ if(-not [string]::IsNullOrEmpty($folderpath)) {
         $exportdecision = read-host -Prompt "Would you like to export afterwards? [Y/N]"
         $gcivar = Get-childitem -Path $folderpath -Recurse -Force -ErrorAction Stop
         Write-Host "Setting variable has succesfully been completed!"
-        $gcivar | Out-gridview
    }
    catch{
         Write-Host "An error has occured while setting the child items under a variable" -ForegroundColor Red                
@@ -31,7 +30,8 @@ if ($exportdecision -eq 'y'){
     }
 }
 elseif ($exportdecision -eq 'n') {
-    write-host "Don't worry. You don't have to export any information."
+	write-host "Don't worry. You don't have to export any information."
+	$gcivar | Out-gridview
 }
 else {
     Write-host "This is not a valid option. Please rerun the script with a valid option to use the export."
