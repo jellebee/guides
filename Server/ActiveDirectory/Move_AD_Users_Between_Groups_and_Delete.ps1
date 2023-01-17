@@ -20,11 +20,25 @@ function addgroupuser
    }
 }
 
+#Create the removeADGroupMembership function to remove the groups of users in the Destinationgroup after the move
+function removeadgroupuser
+{
+     foreach ($user in $Destinationgroupuser) {
+      if($user.objectClass -eq "user"){
+         Get-adgroup -identity $identitySource | Remove-ADGroupMember -members $user -confirm:$false
+       }
+     }
+    Write-host "The foreach loop has been succesfully completed."
+}
+
 #Checking the count of recorSource
 Write-Host "Currently there are $($Sourcegroupuser.count) recorSource in the Source group and $($Destinationgroupuser.count) recorSource in the Destination group "
 #Starting function to add users to the new (Destination) group
 addgroupuser
 
+#Starting function to remove the existing Destination group users in the Source group
+removeadgroupuser
 
 Write-host "The total recorSource have been modified to $($Sourcegroupuser.count) recorSource for the Source group and $($Destinationgroupuser.count) recorSource for the Destination group"
 Write-host "The script has succesfully been completed."
+
