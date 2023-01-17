@@ -1,3 +1,19 @@
+<#
+Hi Guys, I made a small script for creating a Storage Account from PS.
+You can use it freely, wherever necessary. 
+
+From the azure portal ìn the right top you have a way to click on the Powershell icon (cloudshell) and press powershell. From here you could run the script below directly
+Please check the script for connecting to Azure in the Azure GIT repo. O365 will be added later.
+#>
+#Before doing anything, importing the module and connecting to Azure
+$local = Read-Host -Prompt "Are you running the script locally? Say 'yes' or 'y' elsewise AZ connection will not be established."
+if ($local -eq "yes" -or $local -eq "y")
+{
+	#Before doing anything, importing the module and connecting to Azure
+	Import-Module -Name Az
+	Connect-AzAccount
+}
+
 #This script can be used to create or delete an Azure storage account
 #Set the option as a default (Create/Delete)
 $createdelete = ""

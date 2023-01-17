@@ -2,9 +2,16 @@
 Hi Guys, I made a small script for creating a RG from PS. I will also add an AZCLI file up later. 
 You can use it freely, wherever necessary. 
 
-From the azure portal ìn the right top you have a way to click on the Powershell icon (cloudshell) and press powershell. From here you could run the below directly
-Please check the script for connecting to Azure and O365 which will be added later in GIT, as well as the VM creation
+From the azure portal ìn the right top you have a way to click on the Powershell icon (cloudshell) and press powershell. From here you could run the script below directly
+Please check the script for connecting to Azure in the Azure GIT repo. O365 will be added later.
 #>
+$local = Read-Host -Prompt "Are you running the script locally? Say 'yes' or 'y' elsewise AZ connection will not be established."
+if ($local -eq "yes" -or $local -eq "y")
+{
+	#Before doing anything, importing the module and connecting to Azure
+	Import-Module -Name Az
+	Connect-AzAccount
+}
 
 function areyousure{
     #Just to double check that you would like to continue
