@@ -6,7 +6,7 @@ From the azure portal ìn the right top you have a way to click on the Powershel
 
 [LOCAL Run] PLEASE NOTE: IF MODULES HAVE TO BE INSTALLED: Run as Administrator
 #>
-#Confirmation Function
+#Install Required Modules
 function installimportrequiredmodules {
     try {
         #Setting thr required modules list
@@ -21,11 +21,12 @@ function installimportrequiredmodules {
         Write-Host "Module $($module) could not be installed because of: $($Error[0])"
     }
 }
-function areyousure {
+#Export Function
+function exportfunction {
     #Just to double check that you would like to export information
-    $areyousure = Read-host -Prompt "Would you like to export the information [y/n]?"
-    if ($areyousure -eq 'y') {
-        return $areyousure
+    $export = Read-host -Prompt "Would you like to export the information [y/n]?"
+    if ($export -eq 'y') {
+        return $export
         continue
     }
 }
@@ -125,7 +126,7 @@ function GetIncidents {
     }
 }
 function domagic {
-    if (localcall -and !(areyousure)) {
+    if (localcall -and !(exportfunction)) {
         <#
         Either this will do the trick or you have to change out the GetIncidents parameter in front of the exports by setting a variable to hold the value and referring to this
         Like:
@@ -135,7 +136,7 @@ function domagic {
         $exportpath = exportpreperation
         GetIncidents | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
     }
-    if (localcall -and areyousure) {
+    if (localcall -and exportfunction) {
         return GetIncidents | Out-GridView
     }
     else {
