@@ -126,6 +126,12 @@ function GetIncidents {
 }
 function domagic {
     if (localcall -and !(areyousure)) {
+        <#
+        Either this will do the trick or you have to change out the GetIncidents parameter in front of the exports by setting a variable to hold the value and referring to this
+        Like:
+        $incidentlist = GetIncidents
+        $incidentlist | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
+        #>
         $exportpath = exportpreperation
         GetIncidents | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
     }
@@ -153,13 +159,6 @@ function localcall {
         }
     }
 }
-
-<#
-Either this will do the trick or you have to change out the GetIncidents parameter in front of the exports by setting a variable to hold the value and referring to this
-Like:
-$incidentlist = GetIncidents
-$incidentlist | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
-#>
 try {
     domagic
 }
