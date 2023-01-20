@@ -3,8 +3,24 @@ Hi Guys, I made a small script for listing Sentinel incidents per resource group
 You can use it freely, wherever necessary. 
 
 From the azure portal ìn the right top you have a way to click on the Powershell icon (cloudshell) and press powershell. From here you could run the script below directly
+
+[LOCAL Run] PLEASE NOTE: IF MODULES HAVE TO BE INSTALLED: Run as Administrator
 #>
 #Confirmation Function
+function installimportrequiredmodules {
+    try {
+        #Setting thr required modules list
+        $ModulesToInstall = @("Az", "Az.SecurityInsights")
+        #Azure module required for connecting to Azure and installing the module required for Sentinel
+        foreach ($module in $ModulesToInstall) {
+            Install-Module -Name $module
+            Import-Module -Name $module
+        }
+    }
+    catch {
+        Write-Host "Module $($module) could not be installed because of: $($Error[0])"
+    }
+}
 function areyousure {
     #Just to double check that you would like to continue
     $areyousure = Read-host -Prompt "Would you like to export the information [y/n]?"
@@ -79,12 +95,15 @@ function GetIncidents {
 $local = Read-Host -Prompt "Are you running the script locally? Say 'yes' or 'y' elsewise AZ connection will not be established."
 if ($local -eq "yes" -or $local -eq "y") {
     try {
-        #Before doing anything, importing the module and connecting to Azure
-        Import-Module -Name Az
-        Connect-AzAccount
+        #Before doing anything, install the required modules (this also allows an automatic import)
+        installimportrequiredmodules
+        $succes = $true
     }
     catch {
         Write-Host "You probably did not install the module. Please use the Install-Module cmdlet or checkout the Install_AZ_Module_and_Connect script in GitHub"
+    }
+    if ($succes -eq $true) {
+        Connect-AzAccount
     }
 }
 
