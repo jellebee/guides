@@ -125,25 +125,6 @@ function GetIncidents {
         }
     }
 }
-function domagic {
-    if (localcall -and !(exportfunction)) {
-        <#
-        Either this will do the trick or you have to change out the GetIncidents parameter in front of the exports by setting a variable to hold the value and referring to this
-        Like:
-        $incidentlist = GetIncidents
-        $incidentlist | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
-        #>
-        $exportpath = exportpreperation
-        GetIncidents | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
-    }
-    if (localcall -and exportfunction) {
-        return GetIncidents | Out-GridView
-    }
-    else {
-        return GetIncidents
-    }
-    
-}
 function localcall {
     $local = Read-Host -Prompt "Are you running the script locally? Say 'yes' or 'y' elsewise AZ connection will not be established."
     if ($local -eq "yes" -or $local -eq "y") {
@@ -159,6 +140,25 @@ function localcall {
             Connect-AzAccount
         }
     }
+}
+function domagic {
+    if (localcall -and exportfunction) {
+        <#
+        Either this will do the trick or you have to change out the GetIncidents parameter in front of the exports by setting a variable to hold the value and referring to this
+        Like:
+        $incidentlist = GetIncidents
+        $incidentlist | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
+        #>
+        $exportpath = exportpreperation
+        GetIncidents | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
+    }
+    if (localcall -and !(exportfunction)) {
+        return GetIncidents | Out-GridView
+    }
+    else {
+        return GetIncidents
+    }
+    
 }
 try {
     domagic
