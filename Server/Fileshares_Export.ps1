@@ -30,7 +30,6 @@ $output += foreach($directory in $directories){
         } | Select-Object Servername, Foldername, Owner, ADGroup, Permissions
     }	
 }
-
 }
 }
 #Exporting the results to CSV
