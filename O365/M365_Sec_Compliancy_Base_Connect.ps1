@@ -4,7 +4,7 @@ function installrequiredmodules
 	#Install ExchangeOnline
 	Install-Module -Name ExchangeOnlineManagement -Force
 	Import-Module -Name ExchangeOnlineManagement
-	return "Succesfully installed and imported the AzureAD and MSOnline modules"
+	return "Succesfully installed and imported the Exchange Online module"
 }
 try { installrequiredmodules }
 catch
