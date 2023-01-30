@@ -18,11 +18,12 @@ $date = get-date -Format yyyyMMdd-HHmmss
 
 #Setting file name
 $filename = "SQLDB_$date.csv"
-$file = $path + $filename
 if ($filename.length -lt 5){
 	$filename = Read-Host -Prompt "What would you like the (export) filename to be?"
 }
+$file = $path + $filename
 Write-Host "The export filename has been set to $($filename)"
+Write-Host "The full export path has been set to $($file)"
 
 #Setting logpath
 $logpath = "C:\TBIS\Logs\"
@@ -39,10 +40,10 @@ Write-Host "The logfilepath has been set to $($logpath)"
 
 #Setting log filename
 $logfilename = "$($env:ComputerName)_SQLDB_$date.log"
-$logfile = $logpath + $logfilename
 if ($logfile.length -lt 2){
 	$logfilename = Read-Host -Prompt "What would you like the logfilename to be?"
 }
+$logfile = $logpath + $logfilename
 Write-Host "The logfile has been set to $($logfile)"
 
 $server = ""
