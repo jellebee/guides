@@ -99,6 +99,7 @@ function getcompliancesearch($CompliancySearchName)
 			Write-Host "We will now search for a compliancy search matching the identity $($CompliancySearchName)"
 			$compliancy = Get-compliancy -Identity $CompliancySearchName
 		}
+		return $compliancy
 	}
 }
 
