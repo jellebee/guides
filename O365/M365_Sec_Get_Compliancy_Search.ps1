@@ -82,7 +82,7 @@ function exportpreperation {
         continue
     }
 }
-function getcompliancesearch($CompliancySearchName, $DGContentQuestion, $DG, $Content)
+function getcompliancesearch($CompliancySearchName)
 {
 	Write-Host "You selected Get Compliancy Search. Which Compliancy search would you like to check?"
 	
@@ -121,6 +121,6 @@ else{
 	Option 1: Obtain a specific compliancy search by entering the name below
 	WITHOUT Export
 	#>
-	$ComplianceSearch = ""
+	$CompliancySearchName = ""
 	getcompliancesearch
 }
