@@ -11,7 +11,7 @@ function installrequiredmodules
 	#Install ExchangeOnline
 	Install-Module -Name ExchangeOnlineManagement -Force
 	Import-Module -Name ExchangeOnlineManagement
-	return "Succesfully installed and imported the AzureAD and MSOnline modules"
+	return "Succesfully installed and imported the Exchange online module"
 }
 function localcall
 {
@@ -26,7 +26,7 @@ function localcall
 		}
 		catch
 		{
-			Write-Host "You probably did not install the module. Please use the Install-Module cmdlet or checkout the Install_AZ_Module_and_Connect script in GitHub"
+			Write-Host "You probably did not install the module. Please use the Install-Module cmdlet."
 		}
 		if ($succes -eq $true)
 		{
@@ -69,6 +69,8 @@ function compliancesearch($CompliancySearchName, $DGContentQuestion, $DG, $Conte
 		}
 		#This searches for everything in a certain DG
 		New-ComplianceSearch -Name $CompliancySearchName -ExchangeLocation $DG
+		Write-host "The compliancy search will now commence"
+		Start-ComplianceSearch -Identity $ComplianceSearch
 	}
 	if ($DGContentQuestion -eq 1)
 	{
@@ -79,6 +81,8 @@ function compliancesearch($CompliancySearchName, $DGContentQuestion, $DG, $Conte
 		}
 		#This basically searches anywhere for the mentioned content
 		New-ComplianceSearch -Name $CompliancySearchName -ContentMatchQuery $Content
+		Write-host "The compliancy search will now commence"
+		Start-ComplianceSearch -Identity $ComplianceSearch
 	}
 	if ($DGContentQuestion -eq 2)
 	{
@@ -94,6 +98,8 @@ function compliancesearch($CompliancySearchName, $DGContentQuestion, $DG, $Conte
 		}
 		#This searches for specific content in a DG
 		New-ComplianceSearch -Name $CompliancySearchName -ExchangeLocation $DG -ContentMatchQuery $Content
+		Write-host "The compliancy search will now commence"
+		Start-ComplianceSearch -Identity $ComplianceSearch
 	}
 }
 
