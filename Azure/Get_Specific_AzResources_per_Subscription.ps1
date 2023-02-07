@@ -6,6 +6,81 @@ function whatdoyouwant{
 	}
 }
 
+#Setting the local check
+function localcall {
+    $local = Read-Host -Prompt "Are you running the script locally? Say 'yes' or 'y' elsewise AZ connection will not be established."
+    if ($local -eq "yes" -or $local -eq "y") {
+        try {
+            #Before doing anything, install the required modules (this also allows an automatic import)
+            installimportrequiredmodules
+            $succes = $true
+        }
+        catch {
+            Write-Host "You probably did not install the module. Please use the Install-Module cmdlet or checkout the Install_AZ_Module_and_Connect script in GitHub"
+        }
+        if ($succes -eq $true) {
+            Connect-AzAccount
+        }
+    }
+}
+
+function installimportrequiredmodules {
+    try {
+        #Setting thr required modules list
+        $ModulesToInstall = @("Az", "AzureADPreview")
+        #Azure module required for connecting to Azure and installing the module required for Sentinel
+        foreach ($module in $ModulesToInstall) {
+            Install-Module -Name $module
+            Import-Module -Name $module
+        }
+    }
+    catch {
+        Write-Host "Module $($module) could not be installed because of: $($Error[0])"
+    }
+}
+
+#Create export function
+function exportfunction {
+    #Just to double check that you would like to export information
+    $export = Read-host -Prompt "Would you like to export the information [y/n]?"
+    if ($export -eq 'y') {
+        return $export
+        continue
+    }
+}
+
+#Function for export config
+function exportpreperation {
+    try {
+        #Setting export path
+        $path = "C:\Temp"
+        #If the path is not set request the user for setting the path
+        if ($path.length -lt 2) {
+            $path = Read-Host -Prompt "What would you like the export path to be?"
+        }
+        #checking the directory exists and creating one where necessary
+        If (!(test-path $path)) {
+            New-Item -ItemType Directory -Force -Path $path
+            Write-Host "A new export directory has been created at: $($path)"
+        }
+
+        $date = get-date -Format yyyyMMdd-HHmmss
+
+        #Setting file name
+        $filename = "Export_$($functiontoexport)_$($date).csv"
+        if ($filename.length -lt 5) {
+            $filename = Read-Host -Prompt "What would you like the (export) filename to be?"
+        }
+        $file = "$($path)\$($filename)"
+        return $file
+    }
+    catch {
+        Write-Error "I guess something went wrong in your export preperation"
+        continue
+    }
+}
+
+
 #Checks and loops through all subscriptions
 function magiccrossubformula{
 #Get all Azure subscriptions
@@ -71,18 +146,30 @@ function getstorageaccounts{
 		}
 	}
 }
+function localandexportcheck {
+	$localcall = localcall
+	$exportfuntion = exportfunction
+    if ($localcall -and $exportfuntion) {
+        $exportpath = exportpreperation
+        magiccrossubformula | Out-File -FilePath $exportpath -NoClobber -NoOverwrite -Force
+    }
+    if ($localcall -and !($exportfunction)) {
+        return magiccrossubformula | Out-GridView
+    }
+    else {
+        return magiccrossubformula
+    }
+}
 
 
 $wdyw = whatdoyouwant
 if($wdyw -like '1'){
-	Write-Host "This function will now commense 1"
+	Write-Host "This function will now commense the RG checks"
 	$functiontoexecute = "getresourcegroup"
-	$list = magiccrossubformula
-	$list
+	localandexportcheck
 }
 if($wdyw -like '2'){
-	Write-Host "This function will now commense 2"
+	Write-Host "This function will now commense the StorageAccount checks"
 	$functiontoexecute = "getstorageaccounts"
-	$list = magiccrossubformula
-	$list
+	localandexportcheck
 }
