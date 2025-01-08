@@ -1,0 +1,182 @@
+trigger: none  # Manual or by schedule below
+
+schedules:
+- cron: '0 0 * * Sat,Sun'
+  displayName: Weekly Devops Agents Update
+  branches:
+    include:
+    - main
+
+pool:
+  vmImage: 'windows-latest'  # Use a Windows-based agent for PowerShell
+
+variables:
+- group: devopsAutomation #use your own as a fallback
+
+jobs:
+    #Needed to collect PAT
+  - job: Update_Devops_Agents
+    displayName: Update DevOps Agents
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Collect Private Agent PAT token'
+      inputs:
+          azureSubscription: "MYSUBSCRIPTION" #replaceMe
+          scriptType: 'pscore'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            [string]$keyVaultName = "MYKEYVAULT" #replaceMe
+            [string]$keyVaultKey = "PrivateAgent-PAT" #replaceMe
+            
+            [string]$azureDevOpsPAT = (az keyvault secret show --vault-name $keyVaultName --name $keyVaultKey | ConvertFrom-Json).Value
+            
+            if ($azureDevOpsPAT) {
+                Write-Host "PAT successfully collected from KeyVault"
+                Write-Host "##vso[task.setvariable variable=azureDevOpsPAT]$azureDevOpsPAT"
+            }
+            else {
+                Write-Host "##vso[task.complete result=Failed;] PAT not available please check the key $keyVaultKey in keyvault $keyVaultName"
+            }
+    - pwsh: |
+        function Get-ResponseQueue {
+            param(
+                [string]$organizationUrl,
+                [string]$projectName,
+                [string]$apiVersion,
+                [string]$Base64AuthInfo
+            )
+            $Uri = "$organizationUrl/$projectName/_apis/distributedtask/queues?api-version=$apiVersion"
+            Invoke-RestMethod -Uri $Uri -Method Get -Headers @{Authorization=("Basic {0}" -f $Base64AuthInfo)}
+        }
+
+        function Get-AgentPools {
+            param(
+                [PSCustomObject]$ResponseQueue
+            )
+            $ResponseQueue.value | Where-Object { $_.pool.isHosted -eq $false } | 
+                Select-Object name, @{Name="PoolId"; Expression={$_.pool.id}}, @{Name="QueueId"; Expression={$_.id}} | 
+                Sort-Object name
+        }
+
+        function Get-ResponseAgents {
+            param(
+                [string]$organizationUrl,
+                [string]$PoolId,
+                [string]$apiVersion,
+                [string]$Base64AuthInfo
+            )
+            $Uri = "$organizationUrl/_apis/distributedtask/pools/$PoolId/agents?api-version=$apiVersion"
+            Invoke-RestMethod -Uri $Uri -Method Get -Headers @{Authorization=("Basic {0}" -f $Base64AuthInfo)}
+        }
+
+        function Get-NewestAgentVersion {
+            try{
+                $latestVersion = (Invoke-RestMethod https://api.github.com/repos/Microsoft/azure-pipelines-agent/releases/latest).tag_name.TrimStart('v')
+                Write-Host "The latest Azure DevOps agent version for win-x64 is: $latestVersion"
+                return $latestVersion
+            }
+            catch {
+                Write-Host "Error retrieving the latest agent version: $_"
+                return $null
+            }
+        }
+
+        function Update-Agent {
+            param(
+                [string]$organizationUrl,
+                [PSCustomObject]$AgentPool,
+                [PSCustomObject]$Agent,
+                [string]$apiVersion,
+                [string]$Base64AuthInfo
+            )
+            Write-Host "Going to run update command on Agentpool $($AgentPool.name), agent $($Agent.name) with currentversion $($Agent.version)"
+            $Uri = "$organizationUrl/_apis/distributedtask/pools/$($AgentPool.PoolId)/messages?agentId=$($Agent.id)&api-version=$apiVersion"
+            Invoke-RestMethod -Uri $Uri -Method Post -Headers @{Authorization=("Basic {0}" -f $Base64AuthInfo)} -ContentType "application/json"
+        }
+
+        function Process-AgentPools {
+            param(
+                [string]$organizationUrl,
+                [PSCustomObject]$AgentPools,
+                [string]$apiVersion,
+                [string]$Base64AuthInfo
+            )
+            $FailedUpdates = @()
+            $RetryLimit = 3
+            $RetryInterval = 300  # 5 minutes
+            $newestAgentVersion = Get-NewestAgentVersion
+            foreach ($AgentPool in $AgentPools) {
+                $ResponseAgents = Get-ResponseAgents -organizationUrl $organizationUrl -PoolId $AgentPool.PoolId -apiVersion $apiVersion -Base64AuthInfo $Base64AuthInfo
+                foreach ($Agent in $ResponseAgents.value) {
+                    if($Agent.version -lt $newestAgentVersion){
+                        try {
+                            Update-Agent -organizationUrl $organizationUrl -AgentPool $AgentPool -Agent $Agent -apiVersion $apiVersion -Base64AuthInfo $Base64AuthInfo
+                        }
+                        catch {
+                            Write-Host "Something went wrong with agent $Agent Likely the agent is busy? Retrying in 5 minutes"
+                            $FailedUpdates += [PSCustomObject]@{
+                                Agent = $Agent
+                                AgentPool = $AgentPool
+                                RetryCount = 1
+                                }
+                            }
+                        }
+                    }
+                }
+                while ($FailedUpdates.Count -gt 0) {
+                    $NewFailedUpdates = @()  # Store agents that still fail after retries
+                    
+                    foreach ($FailedUpdate in $FailedUpdates) {
+                        if ($FailedUpdate.RetryCount -ge $RetryLimit) {
+                            Write-Host "Agent $($FailedUpdate.Agent) reached the maximum retry limit of $RetryLimit. Skipping further retries."
+                            continue
+                        }
+                        
+                        Write-Host "Retrying update for agent $($FailedUpdate.Agent) in pool $($FailedUpdate.AgentPool). Attempt $($FailedUpdate.RetryCount + 1)"
+                        Start-Sleep -Seconds $RetryInterval
+
+                        try {
+                            Update-Agent -organizationUrl $organizationUrl -AgentPool $FailedUpdate.AgentPool -Agent $FailedUpdate.Agent -apiVersion $apiVersion -Base64AuthInfo $Base64AuthInfo
+                        }
+                        catch {
+                            $NewFailedUpdates += [PSCustomObject]@{
+                                Agent = $FailedUpdate.Agent
+                                AgentPool = $FailedUpdate.AgentPool
+                                RetryCount = $FailedUpdate.RetryCount + 1
+                            }
+                            Write-Host "Something went wrong again with agent $($FailedUpdate.Agent). Likely the agent is still busy. This is attempt $NewFailedUpdates.RetryCount"
+                        }
+                    }
+
+                    # Update the list with agents that still need retries
+                    $FailedUpdates = $NewFailedUpdates
+                }
+            }
+
+        <#
+        Set the org name in the $org, the project name in $project and the apiversion in $apiVer
+        Now set the $personalAccessToken or PAT in code if you copy and run it or set it in a script via parsing through pipeline or add Read-Host to prompt for user input
+        You can also add a $startDate from which you want to automatically finish up on/remove the tasks going forward. For now leave it at the default of 01-01-2021 elsewise add it to the call of function: Get-UserStoriesList
+        #>
+        $projectName = "myProj" #replaceMe
+        $org = "myOrg" # replaceMe
+        $organizationUrl = "https://dev.azure.com/$org"
+        $apiVersion = "7.1" #https://learn.microsoft.com/en-us/azure/devops/pipelines/agents/agents?view=azure-devops&tabs=yaml%2Cazure-devops-cli#how-can-i-trigger-agent-updates-programmatically-for-specific-agent-pool
+        if($azureDevOpsPAT.length -gt 0){
+        #Length will always be more than 0 if the token has been collected succesfully.
+            $PAT_Agentpools_ReadAndManage = $env:azureDevOpsPAT
+            Write-Host "Using Pat from Keyvault"
+        }
+        else{
+        #If not fall back to the old PAT in the Azure Devops variable group. 
+            $PAT_Agentpools_ReadAndManage = $env:patForUpdate
+            Write-Host "Using Pat from var group"
+        }
+        $Base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$($PAT_Agentpools_ReadAndManage)"))
+        # Main execution
+        $ResponseQueue = Get-ResponseQueue -organizationUrl $organizationUrl -projectName $projectName -apiVersion $apiVersion -Base64AuthInfo $Base64AuthInfo
+        $AgentPools = Get-AgentPools -ResponseQueue $ResponseQueue
+        Process-AgentPools -organizationUrl $organizationUrl -AgentPools $AgentPools -apiVersion $apiVersion -Base64AuthInfo $Base64AuthInfo
+      env:
+        azureDevOpsPAT: $(azureDevOpsPAT) #This would come from the attempt above.
+        patForUpdate: $(patForUpdate) #This should come from a variable group, as fallback if the KV is unavailable, in this case the devopsAutomation variable group
