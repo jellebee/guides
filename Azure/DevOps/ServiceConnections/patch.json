@@ -1,0 +1,12 @@
+{
+    "allPipelines": {
+        "authorized": true,
+        "authorizedBy": null,
+        "authorizedOn": null
+    },
+    "pipelines": null,
+    "resource": {
+        "id": "{endpointId}",
+        "type": "endpoint"
+    }
+}

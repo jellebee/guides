@@ -1,0 +1,65 @@
+# Place this at the desired location within AzureDevOps to then be referenced via the to-be-defined repository.
+steps:
+- task: Bash@3
+  displayName: Convert PUML to PNG
+  inputs:
+    targetType: inline
+    script: |
+      sudo apt install plantuml --allow-unauthenticated
+
+      <#
+        Automate the closing of resolved/done devops items
+        First Steps:
+        Set the org name in the $org and the project name in $project
+        Now set the gitUser and gitEmail you want to use from now on.
+        For automation purposes you can name is something generic like CloudAutomation with an applicable email
+      #>
+      $gitUser = "MyAutomation" #replaceMe
+      $gitEmail = "myuser@myuser.nl" #replaceMe
+      $project = "myProject" #replaceMe
+      $org = "myOrg" #replaceMe
+
+      git config --global user.email $gitEmail
+      git config --global user.name $gitUser
+      
+      git clone https://$gitUser:$(personalAccessToken)@dev.azure.com/$org/$project/_git/$(Build.Repository.Name)
+      cd $(Build.Repository.Name)
+      # Fetch all branches and check out
+      git fetch origin
+      git checkout -b $(Build.SourceBranchName) origin/$(Build.SourceBranchName)
+
+      # Find all .puml files and convert them to PNG using PlantUML
+      tempFileList=$(mktemp)
+      find "$(Build.SourcesDirectory)" -type f -name "*.png" > "$tempFileList"
+      
+      while IFS= read -r pumlfile; do
+        pngfile="${pumlfile%.puml}.png"
+        if [[ ! -f "$pngfile" ]]; then
+          echo "Converting $pumlfile to $pngfile"
+          plantuml -tpng "$pumlfile"
+        else
+          echo "Skipping $pumlfile, PNG already exists."
+        fi
+      done < <(find "$(Build.SourcesDirectory)" -type f -name "*.puml")
+
+      echo "Generated PNG files:"
+      newPngs=$(comm -13 <(sort "$tempFileList") <(find "$(Build.SourcesDirectory)" -type f -name "*.png" | sort))
+      if [[ -z "$newPngs" ]]; then
+        echo "No new PNG files were generated."
+      else
+        echo "$newPngs"
+      fi
+      rm "$tempFileList"
+      # Add new PNGs to the repository
+      for pngfile in $newPngs; do
+        # Compute relative path for Git by stripping source directory
+        relativePath=${pngfile#$(Build.SourcesDirectory)/}
+        
+        # Copy files to ensure they are in the repo directory
+        cp "$pngfile" "./$relativePath"
+        
+        # Make sure directories exist and add the file to Git
+        git add "./$relativePath"
+      done
+      git commit -m "Add new PNG images generated from PUML files"
+      git push origin $(Build.SourceBranchName)

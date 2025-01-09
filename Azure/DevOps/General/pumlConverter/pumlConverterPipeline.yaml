@@ -1,0 +1,23 @@
+resources:
+  repositories:
+  - repository: templates 
+    type: git
+    name: myproject/templaterepo #Replace with the current project/repo
+
+variables:
+- group: devopsAutomation #Required for the Personal access token to be used in the referenced templates. Calling through here allows to parse without extra risks in exposing the variable
+#Alternatively you could replace it with a pipeline tasks that parses it either here or in the template
+
+jobs:
+  - job: CheckoutRepo
+    displayName: 'Checkout Repositories'
+    steps:
+      - checkout: templates #Replace with the current repo
+      - checkout: self
+        path: s
+
+  - job: ExecuteTemplate
+    displayName: 'Execute PumlConverter Template'
+    dependsOn: CheckoutRepo
+    steps:
+      - template: pullrequest/PumlConverter.yaml@templates #Replace with the current path inside the repo. In my case its in the root/pullrequest/pumlConverter.yaml

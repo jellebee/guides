@@ -1,0 +1,16 @@
+{
+    "name": "{Name}",
+    "type": "azurerm",
+    "authorization": {
+        "scheme": "WorkloadIdentityFederation",
+        "parameters": {
+            "serviceprincipalid": "{ServicePrincipalId}",
+            "tenantid": "{TenantId}"
+        }
+    },
+    "data": {
+        "subscriptionId": "{SubscriptionId}",
+        "subscriptionName": "{SubscriptionName}",
+        "environment": "AzureCloud"
+    }
+}
