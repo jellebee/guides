@@ -1,0 +1,42 @@
+TargetAccountAliases:
+  - replace-me-account #enter your AWS Account also adjust the file name
+ResponseFile: ./response/jumphost-replace-me-account.log
+TargetRegion: eu-west-1
+CloudFormationOptions:
+  StackName: jumphost-ec2 #Replace with your stack name
+  Tags:
+    - Key: Name
+      Value: Jumphost_EC2 #Replace with your name
+    - Key: Description
+      Value: Deploys an EC2 ASG with a purpose #Replace with your description
+    - Key: BusinessDomain
+      Value: IT operations #Replace with applicable tags
+    - Key: SLA
+      Value: None # based on your SLA
+    - Key: Stage
+      Value: dev # for instance dev/tst/acc/prd
+  Capabilities:
+    - CAPABILITY_NAMED_IAM
+  Parameters:
+    - ParameterKey: AmiId
+      ParameterValue: "ami-0a146b80658a33ac5"
+    - ParameterKey: FetchFromSSM
+      ParameterValue: "false" #If this is true the parameter Ami ID must have a path like /images/custom/rocky where rocky is then the parameter in question. So it can be retrieved. Elsewise leave this false, you can then specify an ami ID
+    - ParameterKey: Application
+      ParameterValue: replace-me-application #Replace this with your application name
+    - ParameterKey: ASGScheduledEnabled
+      ParameterValue: "false"
+    - ParameterKey: ASGNormalCapacity
+      ParameterValue: "1,1,1"
+    - ParameterKey: ASGHealthCheckGracePeriod
+      ParameterValue: "750"
+    # - ParameterKey: DNSHostedZoneId 
+    #   ParameterValue: "" #If you use a DNS Hosted Zone fill our the ID here, and enable the dns record step in the template. If not leave it empty.
+    # - ParameterKey: DNSDomainName
+    #   ParameterValue: myzone.myorg.private #If you use a DNS Hosted Zone (currently mandatory) fill our the dnsdomainname here If not leave it empty.
+    - ParameterKey: InstanceDiskSize
+      ParameterValue: 30
+    - ParameterKey: InstanceSize
+      ParameterValue: t3.large
+    - ParameterKey: VPC
+      ParameterValue: replaceMeVpc # Replace with your VPC For security groups it uses a sub function using default-sg so the vpc must contain a default-sg to ensure functionality
