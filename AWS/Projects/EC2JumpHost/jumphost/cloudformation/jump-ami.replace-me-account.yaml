@@ -1,0 +1,30 @@
+TargetAccountAliases:
+  # Specify account alias(es) where the stack should be created.
+  - replace-me-account
+ResponseFile: ./response/jumphost-ami-builder-replace-me-account.log #Replace the replacemeaccount with your account and adjust the filename
+CloudFormationOptions:
+  # The name of the stack that will be created in the Target Accounts
+  StackName: jumphost-ami #Replace with your stack name
+  # The tags that are specified here will be added to each resource that is created (if possible)
+  Tags:
+    - Key: Name
+      Value: LinuxAmiBuilder_Jumphost #Replace with your name
+    - Key: Description
+      Value: Builds images for the Jumphost with a purpose #Replace with your description
+    - Key: BusinessDomain
+      Value: IT operations #Replace with applicable tags
+    - Key: SLA
+      Value: None # based on your SLA
+    - Key: Stage
+      Value: dev # for instance dev/tst/acc/prd
+  Capabilities:
+    - CAPABILITY_NAMED_IAM
+  Parameters:
+    - ParameterKey: AmiChoice # Has 2 allowed values Rocky8-Linux-AMI and Custom, please adjust in the template if required.
+      ParameterValue: Rocky8-Linux-AMI #Replace me the name of the image you want to use (Just the name for you)
+    - ParameterKey: CustomAmiBaseId
+      ParameterValue: ami-0a146b80658a33ac5 #Use this for your base image, currently amazon linux 2, 2023 and Rocky 8/9. Please subscribe through the marketplace if it is required
+    - ParameterKey: LogGroupName
+      ParameterValue: Jumphost #Replace me with the name of the loggroup. It automatically uses the AmiChoice in the naming
+    - ParameterKey: RecipeVersion
+      ParameterValue: 0.0.1 #Replace this with your image recipe version

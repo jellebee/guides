@@ -1,0 +1,339 @@
+  AWSTemplateFormatVersion: 2010-09-09
+  Description: Zabbix Proxy - Fargate & RDS + SecretsManager
+  Parameters:
+    VPC:
+      Type: String
+      Description: The VPC name needs to be given / parsed in order for the resources to deploy properly  
+    PrivSubnetContainerA:
+      Type: String
+      Description: Private subnet for containers in AZ 1 of the chozen region
+      Default: "subnet-123" #your private subnet in any region AZ1
+    PrivSubnetContainerB:
+      Type: String
+      Description: Private subnet for containers in AZ 2 of the chozen region
+      Default: "subnet-123" #your private subnet in any region AZ2
+    PrivSubnetContainerC:
+      Type: String
+      Description: Private subnet for containers in AZ 3 of the chozen region
+      Default: "subnet-123" #your private subnet in any region AZ3
+    Image:
+      Type: String
+      Default: "zabbix/zabbix-proxy-mysql:latest"
+      AllowedValues:
+        - zabbix/zabbix-proxy-mysql:latest
+    ServiceName:
+      Type: String
+      Default: ZbxPrx-Service
+    ContainerPort:
+      Type: Number
+      Default: 80
+    ZBXProxyPort:
+      Type: Number
+      Default: 10051
+    SQLPort:
+      Type: Number
+      Default: 3306
+      AllowedValues:
+        - 3306
+    MinContainers:
+      Type: Number
+      Default: 1
+    MaxContainers:
+      Type: Number
+      Default: 2
+    AutoScalingTargetValue:
+      Type: Number
+      Default: 80
+    DBInstanceClass:
+      Type: String
+      Description: Database instance class
+      Default: db.t4g.micro
+    DBEngineType:
+      Type: String
+      Description: Type of database to use
+      Default: mysql
+      AllowedValues:
+        - mysql
+    DBName:
+      Type: String
+      Default: zbxpxydb001
+    DBSize:
+      Type: Number
+      Default: 10
+      AllowedValues:
+        - 10
+        - 20
+        - 30
+        - 50
+    ZabbixProxyHostName:
+      Type: String
+      Default: zbxpxy-proxy-myorg-01
+      AllowedValues:
+        - zbxpxy-proxy-myorg-01
+        - zbxpxy-proxy-myorg-01-tst
+        - zbxpxy-proxy-myorg-01-dev
+        - zbxpxy-proxy-myorg-01-acc
+        - zbxpxy-proxy-myorg-01-prd
+    ZabbixServerHost:
+      Type: String
+    ZabbixTlsPskIdentity:
+      Type: String
+      Default: ""
+    ZabbixTlsPskKey:
+      Type: String
+      Default: ""
+    ZabbixProxyMode:
+      Type: String
+      Default: "0"
+      AllowedValues:
+        - "0"
+        - "1"
+  Resources:
+    Secretmansecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: !Sub "${DBName}-secret"
+        Description: Secret for ZbxPxy Aurora database credentials
+        GenerateSecretString:
+          SecretStringTemplate: '{"username": "ZbxPxyDBMasterUser"}'
+          GenerateStringKey: "password"
+          PasswordLength: 21
+          ExcludeCharacters: '"@/\'
+    RDSDBInstanceSubnetGroups:
+      Type: 'AWS::RDS::DBSubnetGroup'
+      Properties:
+        DBSubnetGroupName: RDSDBInstanceSubnetGroups
+        DBSubnetGroupDescription: RDSDBInstance Subnet Groups
+        SubnetIds:
+          - !Ref PrivSubnetContainerC
+          - !Ref PrivSubnetContainerA
+          - !Ref PrivSubnetContainerB
+    RDSDBInstance:
+      Type: 'AWS::RDS::DBInstance'
+      DependsOn: [Secretmansecret, SQLSecurityGroup, RDSDBInstanceSubnetGroups]
+      Properties:
+        Engine: !Ref DBEngineType
+        DBInstanceClass: !Ref DBInstanceClass
+        MasterUsername: !Sub "{{resolve:secretsmanager:${Secretmansecret}:SecretString:username}}"
+        MasterUserPassword: !Sub "{{resolve:secretsmanager:${Secretmansecret}:SecretString:password}}"
+        EnableIAMDatabaseAuthentication: true
+        EnableCloudwatchLogsExports:
+          - error
+        DBName: !Ref DBName
+        MultiAZ: false
+        AllocatedStorage: !Ref DBSize
+        StorageType: gp3
+        DBSubnetGroupName: !Ref RDSDBInstanceSubnetGroups
+        VPCSecurityGroups:
+          - !Ref SQLSecurityGroup
+          - Fn::ImportValue: !Sub '${VPC}-default-sg-id'
+    Cluster:
+      Type: AWS::ECS::Cluster
+      Properties:
+        ClusterName: !Join ['', [!Ref ServiceName, Cluster]]
+    TaskDefinition:
+      Type: AWS::ECS::TaskDefinition
+      # Makes sure the log group is created before it is used.
+      DependsOn: [LogGroup, TaskRole, RDSDBInstance]
+      Properties:
+        # Name of the task definition. Subsequent versions of the task definition are grouped together under this name.
+        Family: !Join ['', [!Ref ServiceName, TaskDefinition]]
+        # awsvpc is required for Fargate
+        NetworkMode: awsvpc
+        RequiresCompatibilities:
+          - FARGATE
+        Cpu: 512
+        # Between 8GB and 30GB in 1GB increments - Available cpu values: 4096 (4 vCPU)
+        Memory: 1GB
+        ExecutionRoleArn: !Ref ExecutionRole
+        TaskRoleArn: !Ref TaskRole
+        ContainerDefinitions:
+          - Name: !Ref ServiceName
+            Image: !Ref Image
+            Essential: true
+            PortMappings:
+              - ContainerPort: !Ref ContainerPort
+              - ContainerPort: !Ref ZBXProxyPort
+            # Send logs to CloudWatch Logs
+            LogConfiguration:
+              LogDriver: awslogs
+              Options:
+                awslogs-region: !Ref AWS::Region
+                awslogs-group: !Ref LogGroup
+                awslogs-stream-prefix: ecs
+            Environment:
+              - Name: entryPoint
+                Value: 'sh, -c'
+              - Name: command
+                Value: >-
+                  /bin/sh -c 'echo "${ZabbixTlsPskKey}" > /var/lib/zabbix/enc/ZBXProxConfig.psk'
+              - Name: DB_SERVER_HOST
+                Value: !GetAtt RDSDBInstance.Endpoint.Address
+              - Name: MYSQL_USER
+                Value: !Sub "{{resolve:secretsmanager:${Secretmansecret}:SecretString:username}}"
+              - Name: MYSQL_PASSWORD
+                Value: !Sub "{{resolve:secretsmanager:${Secretmansecret}:SecretString:password}}"
+              - Name: ZBX_HOSTNAME
+                Value: !Ref ZabbixProxyHostName
+              - Name: ZBX_SERVER_HOST
+                Value: !Ref ZabbixServerHost
+              - Name: ZBX_TLSPSKIDENTITY
+                Value: !Ref ZabbixTlsPskIdentity
+              - Name: ZBX_TLSCONNECT
+                Value: psk
+              - Name: ZBX_TLSACCEPT
+                Value: psk
+              - Name: ZBX_TLSPSKFILE
+                Value: /var/lib/zabbix/enc/ZBXProxConfig.psk
+              #ZBX_PROXYMODE default is 1 (Active). Optionally 0 (Passive)
+              - Name: ZBX_PROXYMODE
+                Value: !Ref ZabbixProxyMode
+    # A role needed by ECS
+    ExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: !Join ['', [!Ref ServiceName, ExecutionRole]]
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+              Action: 'sts:AssumeRole'
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+    # A role for the containers
+    TaskRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: !Join ['', [!Ref ServiceName, TaskRole]]
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+              Action: 'sts:AssumeRole'
+        Policies:
+          - PolicyName: SecretManagerAccess
+            PolicyDocument:
+              Statement:
+                - Effect: Allow
+                  Action: 'secretsmanager:GetSecretValue'
+                  Resource:
+                    - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${Secretmansecret}"
+    AutoScalingRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: !Join ['', [!Ref ServiceName, AutoScalingRole]]
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ecs-tasks.amazonaws.com
+              Action: 'sts:AssumeRole'
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole'
+    ContainerSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: !Join ['', [!Ref ServiceName, ContainerSecurityGroup]]
+        VpcId:
+          Fn::ImportValue:
+            !Sub ${VPC}-vpcid
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: !Ref ContainerPort
+            ToPort: !Ref ContainerPort
+            CidrIp: 10.0.0.0/8
+          - IpProtocol: "-1"
+            FromPort: !Ref ZBXProxyPort
+            ToPort: !Ref ZBXProxyPort
+            CidrIp: 10.0.0.0/8
+        SecurityGroupEgress:
+          - IpProtocol: "-1"
+            FromPort: !Ref ZBXProxyPort
+            ToPort: !Ref ZBXProxyPort
+            CidrIp: 0.0.0.0/0
+    SQLSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: !Join ['', [!Ref ServiceName, SQLSecurityGroup]]
+        VpcId:
+          Fn::ImportValue:
+            !Sub ${VPC}-vpcid
+        SecurityGroupIngress:
+          - IpProtocol: "-1"
+            FromPort: !Ref SQLPort
+            ToPort: !Ref SQLPort
+            CidrIp: 10.0.0.0/8
+        SecurityGroupEgress:
+          - IpProtocol: "-1"
+            FromPort: !Ref SQLPort
+            ToPort: !Ref SQLPort
+            CidrIp: 0.0.0.0/0
+    Service:
+      Type: AWS::ECS::Service
+      DependsOn: [ContainerSecurityGroup, TaskDefinition]
+      Properties:
+        ServiceName: !Ref ServiceName
+        Cluster: !Ref Cluster
+        TaskDefinition: !Ref TaskDefinition
+        DeploymentConfiguration:
+          MinimumHealthyPercent: 100
+          MaximumPercent: 200
+        DesiredCount: 2
+        LaunchType: FARGATE
+        NetworkConfiguration: 
+          AwsvpcConfiguration:
+            AssignPublicIp: DISABLED
+            Subnets:
+              - !Ref PrivSubnetContainerA
+              - !Ref PrivSubnetContainerB
+              - !Ref PrivSubnetContainerC
+            SecurityGroups:
+              - !Ref ContainerSecurityGroup
+              - !Ref SQLSecurityGroup
+              - Fn::ImportValue:
+                  !Sub ${VPC}-default-sg-id
+    LogGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: !Join ['', [/zbxpxy/, !Ref ServiceName, TaskDefinition]]
+    AutoScalingTarget:
+      Type: AWS::ApplicationAutoScaling::ScalableTarget
+      DependsOn: Service
+      Properties:
+        MinCapacity: !Ref MinContainers
+        MaxCapacity: !Ref MaxContainers
+        ResourceId: !Join ['/', [service, !Ref Cluster, !GetAtt Service.Name]]
+        ScalableDimension: ecs:service:DesiredCount
+        ServiceNamespace: ecs
+        # "The Amazon Resource Name (ARN) of an AWS Identity and Access Management (IAM) role that allows Application Auto Scaling to modify your scalable target."
+        RoleARN: !GetAtt AutoScalingRole.Arn
+    AutoScalingPolicy:
+      Type: AWS::ApplicationAutoScaling::ScalingPolicy
+      DependsOn: AutoScalingTarget
+      Properties:
+        PolicyName: !Join ['', [!Ref ServiceName, AutoScalingPolicy]]
+        PolicyType: TargetTrackingScaling
+        ScalingTargetId: !Ref AutoScalingTarget
+        TargetTrackingScalingPolicyConfiguration:
+          PredefinedMetricSpecification:
+            PredefinedMetricType: ECSServiceAverageCPUUtilization
+          ScaleInCooldown: 10
+          ScaleOutCooldown: 10
+          # Keep things at or lower than 50% CPU utilization, for example
+          TargetValue: !Ref AutoScalingTargetValue
+  Outputs:
+    ContainerLogGroupARN:
+        Description: ARN of the container loggroup
+        Value: !GetAtt LogGroup.Arn
+    RDSDBInstance:
+        Description: Instance name of the RDS DB Instance
+        Value: !Ref RDSDBInstance
+    RDSDBInstanceEndpointAddress:
+        Description: Endpoint address of the RDS DB Endpoint
+        Value: !GetAtt RDSDBInstance.Endpoint.Address
+    ZBXPXYSQLErrorLogs:
+        Description: Location of ZBXPXY SQL Error Log
+        Value: !Join ['', [/aws/rds/instance/, !Ref RDSDBInstance, /error]]
+    

@@ -1,0 +1,52 @@
+TargetAccountAliases:
+  - replace-me-account #enter your AWS Account also adjust the file name
+ResponseFile: ./response/zbxpxy-replace-me-account.log
+TargetRegion: eu-west-1
+CloudFormationOptions:
+  StackName: zbxpxy-stack #Replace with your stack name
+  Tags:
+    - Key: Name
+      Value: ZbxPxyDeploy #Replace with your name
+    - Key: Description
+      Value: Deploys Zabbix Proxy to your environment #Replace with your description
+    - Key: BusinessDomain
+      Value: IT operations #Replace with applicable tags
+    - Key: SLA
+      Value: None # based on your SLA
+    - Key: Stage
+      Value: dev # for instance dev/tst/acc/prd
+  Capabilities:
+    - CAPABILITY_NAMED_IAM
+  Parameters:
+    - ParameterKey: VPC
+      ParameterValue: "My-VPC" # Replace with your VPC For security groups it uses a sub function using default-sg so the vpc must contain a default-sg to ensure functionality
+    - ParameterKey: Image
+      ParameterValue: "zabbix/zabbix-proxy-mysql:latest"
+    - ParameterKey: PrivSubnetContainerA
+      ParameterValue: "subnet-123" #Replace with your subnet
+    - ParameterKey: PrivSubnetContainerB
+      ParameterValue: "subnet-123" #Replace with your subnet
+    - ParameterKey: PrivSubnetContainerC
+      ParameterValue: "subnet-123" #Replace with your subnet
+    - ParameterKey: MinContainers
+      ParameterValue: 1
+    - ParameterKey: MaxContainers
+      ParameterValue: 1
+    - ParameterKey: MinSQLContainers
+      ParameterValue: 1
+    - ParameterKey: MaxSQLContainers
+      ParameterValue: 1
+    - ParameterKey: ServiceName
+      ParameterValue: ZbxPxy-Service #Replace with your service name
+    - ParameterKey: SQLServiceName
+      ParameterValue: ZbxPxy-SQL-Service #Align this with your service name as this is recommended
+    - ParameterKey: SQLVolumeSize
+      ParameterValue: 10
+    - ParameterKey: ZabbixProxyHostName #Replace with the Proxy Hostname configured in the Zabbix Host
+      ParameterValue: zbxpxy-proxy-myorg-01 # Replace this here and in the allowed values with a format for your organization
+    - ParameterKey: ZabbixTlsPskIdentity
+      ParameterValue: "" #Replace with the TLS PSK Identity configured in the Zabbix Host
+    - ParameterKey: ZabbixProxyMode
+      ParameterValue: "0" #Replace with 1 to set the proxy to active instead of passive
+    - ParameterKey: ZabbixServerHost
+      ParameterValue: "" #Replace with the IP of the zabbix host
