@@ -1,0 +1,332 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "AWS Jumphost deployment"
+Parameters:
+  AmiId:
+    Description: "AMI ID to use either a full AMI or an ssm parameter specified in /images/...."
+    Type: String
+    Default: "/images/custom/Rocky8-Linux-AMI"
+  Application:
+    Description: "Name of the application"
+    Type: String
+    MinLength: "1"
+    MaxLength: "10"
+    AllowedPattern: "[a-z]*"
+    ConstraintDescription: "Can contain only between 1 and 10 lowercase characters."
+  ASGCoolDownPeriod:
+    Description: "The number of seconds after a scaling activity completes before another can begin."
+    Type: String
+    Default: "120"
+  ASGHealthCheckGracePeriod:
+    Description: "Auto Scaling waits until the health check grace period ends before checking the health status of the instance."
+    Type: String
+    Default: "600"
+  ASGHealthCheckType:
+    Description: "The service you want the health status from, Amazon EC2 or Elastic Load Balancer."
+    Type: String
+    AllowedValues:
+      - ELB
+      - EC2
+    Default: EC2
+  ASGNormalCapacity:
+    Description: "A comma delimited list of 3 numbers, defining the MinSize, MaxSize and DesiredCapacity (in that order) of the Autoscaling Group. If a schedule is configured, these values are used for the scaling up event"
+    Type: List<Number>
+    Default: "1,1,1"
+  ASGScheduledEnabled:
+    Description: "Enables the policy to schedule up and down time based"
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
+    Default: "false"
+  ASGScheduledScaleDays:
+    Description: "Days of the week to scale up and down"
+    Type: String
+    AllowedValues:
+      - "*"
+      - "MON"
+      - "TUE"
+      - "WED"
+      - "THU"
+      - "FRI"
+      - "SAT"
+      - "SUN"
+      - "MON-FRI"
+      - "SAT-SUN"
+    Default: "*"
+  ASGScheduledScaleDownCapacity:
+    Description: "A comma delimited list of numbers, defining the MinSize, MaxSize and DesiredCapacity (in that order) of the Autoscaling Group after scaling down"
+    Type: List<Number>
+    Default: "0,0,0"
+  ASGScheduledScaleDownTime:
+    Description: "Hour of the day to scale down (UTC)"
+    Type: String
+    AllowedPattern: "[0-1][0-9]|2[0-3]"
+    ConstraintDescription: "Must be a numeric value of 2 digits between 00 and 23"
+    Default: "17"
+  ASGScheduledScaleUpTime:
+    Description: "Hour of the day to scale up (UTC)"
+    Type: String
+    AllowedPattern: "[0-1][0-9]|2[0-3]"
+    ConstraintDescription: "Must be a numeric value of 2 digits between 00 and 23"
+    Default: "06"
+  DNSHostedZoneId:
+    Description: The ID of the DNS zone you would like to use.
+    Type: String #ReplaceMe with your DnsHostedZone id based on your route53 configuration.
+  DNSDomainName:
+    Description: Name of the DNS zone you would like to target (matching the ID above)
+    Type: String #ReplaceMe with your DNS Domain name 
+  EC2DefaultRoleStack:
+    Description: "Stackname of the stack in which the default EC2 role is created. Normally the default should be used."
+    Type: String
+    Default: "my-default-role" #Replace this with your (default) EC2 Role to be used
+  InstanceDiskSize:
+    Description: "Size of the primary EBS volume"
+    Type: String
+    Default: "30"
+  InstanceSize:
+    Description: "Amazon EC2 instance type"
+    Type: String
+    Default: "t3.large"
+  SubnetId:
+    Description: "SubnetId of the subnet within the VPC you're trying to use"
+    Type: String
+    Default: "subnet-1a5l183" #ReplaceMe with the subnet within the vpc (specify 1 AZ)
+  VPC: #replace me with the real vpc through parameters
+    Description: "Stackname of the stack in which the VPC is created that is to be used. Normally the default should be used."
+    Type: String
+  FetchFromSSM:
+    Description: When set to true it allows fetching the AMI from SSM
+    Type: String
+    Default: "true"
+    "AllowedValues": [
+        "true",
+        "false"
+    ]
+Conditions:
+  ASGScheduledEnabled: !Equals [!Ref ASGScheduledEnabled, "true"]
+  FetchFromSSM: !Equals [!Ref FetchFromSSM, "true"]
+Resources:
+    IAMLambdaSSMGet:
+    Type: AWS::IAM::Role
+    Condition: FetchFromSSM
+    Properties:
+        RoleName: !Join ['', [!Ref Application, IAMLambdaSSMGet-Role]]
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: ec2.amazonaws.com
+              Action: 'sts:AssumeRole'
+        Policies:
+              - PolicyName: AllowReadImageIdFromSSM
+                PolicyDocument:
+                  Statement:
+                    - Effect: "Allow"
+                      Action:
+                        - "ssm:GetParameter"
+                      Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/images/*"
+  JumphostKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Join ['-', [jump", !Ref ServiceName, "id_rsa"]]
+  EC2SecurityGroup: 
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId:
+        Fn::ImportValue:
+          !Sub ${VPC}-vpcid
+      GroupDescription: !Sub "Security Group for Linux JumpHost EC2 ${AWS::StackName}"
+      GroupName:
+        Fn::Join:
+          - "-"
+          - - !Ref Application
+            - "ec2"
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Join:
+              - "-"
+              - - !Ref Application
+                - "ec2"
+        - Key: "Application"
+          Value: !Ref Application
+      SecurityGroupIngress:
+        #ReplaceMe Define other ingress rules here
+        - CidrIp: 0.0.0.0/0
+          Description: "Zabbix proxy port"
+          IpProtocol: tcp
+          FromPort: 10051
+          ToPort: 10051
+      SecurityGroupEgress:
+        #ReplaceMe Define other egress rules here
+        - CidrIp: 0.0.0.0/0
+          Description: "Outbound HTTP"
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          Description: "Outbound HTTPS"
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          Description: "Outbound NTP"
+          IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+        - CidrIp: 0.0.0.0/0
+          Description: "Outbound SMTP (S)"
+          IpProtocol: tcp
+          FromPort: 587
+          ToPort: 587
+        - CidrIp: 0.0.0.0/0
+          Description: "Outbound DNS" #only if required ofcourse
+          IpProtocol: "-1"
+          FromPort: 53
+          ToPort: 53
+        - CidrIp: 0.0.0.0/0
+          Description: "Zabbix proxy port"
+          IpProtocol: tcp
+          FromPort: 10051
+          ToPort: 10051
+  LaunchTemplateEC2:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: JumpHostLaunchTemplate
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn:
+            Fn::ImportValue:
+              !Sub ${EC2DefaultRoleStack}-profile-arn
+        DisableApiTermination: true
+        ImageId:
+          Fn::If:
+            - FetchFromSSM
+            - !Sub "{{resolve:ssm:${AmiId}:1}}"
+            - !Ref AmiId
+        InstanceType: !Ref InstanceSize
+        KeyName: !Ref JumphostKeyPair
+        SecurityGroupIds:
+          - !Ref EC2SecurityGroup
+          - Fn::ImportValue:
+              !Sub ${VPC}-default-sg-id #ReplaceMe with an existing value voor de security group
+        BlockDeviceMappings:
+          - DeviceName: "/dev/sda1"
+            Ebs:
+              VolumeSize: !Ref InstanceDiskSize
+              VolumeType: "gp3"
+              DeleteOnTermination: true
+        CreditSpecification: 
+          CpuCredits: Unlimited
+        Monitoring: 
+          Enabled: true
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            #Update the packages
+            sudo yum update -y
+            #Set Sudo Enforce (secure)
+            sudo setenforce 1
+
+            # Execute SSM document using AWS CLI
+            # INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+            # aws ssm create-association --instance-id $INSTANCE_ID --name "association name"
+
+            #Reboot the system
+            sudo /sbin/shutdown --reboot now
+            # /opt/aws/bin/cfn-init --verbose --stack ${AWS::StackName} --resource LaunchTemplateEC2 --configsets configureLinux --region ${AWS::Region}
+  AutoScalingEC2:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: 0
+        MinSuccessfulInstancesPercent: 100
+        PauseTime: PT15M
+        WaitOnResourceSignals: true
+        SuspendProcesses:
+          - AlarmNotification
+          - ScheduledActions
+      AutoScalingScheduledAction:
+        IgnoreUnmodifiedGroupSizeProperties: true
+    CreationPolicy:
+      AutoScalingCreationPolicy:
+        MinSuccessfulInstancesPercent: 50
+      ResourceSignal:
+        Count: "1"
+        Timeout: PT60M
+    Properties:
+      AutoScalingGroupName:
+        Fn::Join:
+          - "-"
+          - - !Ref Application
+            - "jumphost-asg"
+      AvailabilityZones:
+        Fn::GetAZs: !Ref "AWS::Region"
+      Cooldown: !Ref ASGCoolDownPeriod
+      HealthCheckType: !Ref ASGHealthCheckType
+      HealthCheckGracePeriod: !Ref ASGHealthCheckGracePeriod
+      DesiredCapacity: !Select [2, !Ref ASGNormalCapacity]
+      LaunchTemplate:
+        LaunchTemplateId: !GetAtt LaunchTemplateEC2.LaunchTemplateId
+        Version: !GetAtt LaunchTemplateEC2.LatestVersionNumber
+      MinSize: !Select [0, !Ref ASGNormalCapacity]
+      MaxSize: !Select [1, !Ref ASGNormalCapacity]
+      MetricsCollection:
+        - Granularity: 1Minute
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Join:
+              - "-"
+              - - !Ref Application
+                - "ec2"
+          PropagateAtLaunch: True
+        - Key: "Description"
+          Value: !Sub "Jumphost Autoscaling instance for ${Application}"
+          PropagateAtLaunch: True
+        - Key: "Application"
+          Value: !Ref Application
+          PropagateAtLaunch: True
+      VPCZoneIdentifier: # ReplaceMe the subnets have been added here for reference in case you would like to import them straight from the vpc
+        - Fn::ImportValue:
+            !Sub ${VPC}-privatesubnet1id
+        - Fn::ImportValue:
+            !Sub ${VPC}-privatesubnet2id
+        - Fn::ImportValue:
+            !Sub ${VPC}-privatesubnet3id
+  ScheduledActionUp:                            
+    Type: "AWS::AutoScaling::ScheduledAction"
+    Condition: ASGScheduledEnabled
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingEC2
+      MinSize: !Select [0, !Ref ASGNormalCapacity]
+      MaxSize: !Select [1, !Ref ASGNormalCapacity]
+      DesiredCapacity: !Select [1, !Ref ASGNormalCapacity]
+      Recurrence: !Sub "0 ${ASGScheduledScaleUpTime} * * ${ASGScheduledScaleDays}"
+  ScheduledActionDown:                            
+    Type: "AWS::AutoScaling::ScheduledAction"
+    Condition: ASGScheduledEnabled
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingEC2
+      MinSize: !Select [0, !Ref ASGScheduledScaleDownCapacity]
+      MaxSize: !Select [1, !Ref ASGScheduledScaleDownCapacity]
+      DesiredCapacity: !Select [1, !Ref ASGScheduledScaleDownCapacity]
+      Recurrence: !Sub "0 ${ASGScheduledScaleDownTime} * * ${ASGScheduledScaleDays}"
+  # DNSRecord:
+  #   Type: AWS::Route53::RecordSet
+  #   DependsOn: AutoScalingEC2
+  #   Properties:
+  #     HostedZoneId: !Ref DNSHostedZoneId
+  #     Name: !Ref DNSDomainName
+  #     Type: A
+  #     TTL: "300"
+  #     ResourceRecords:
+  #       - !Join [",", !GetAtt AutoScalingEC2.Instances.*.PrivateIpAddress]
+Outputs:
+  KeyPairFingerPrint:
+    Description: Key pair fingerprint
+    Value: !GetAtt JumphostKeyPair.KeyFingerprint
+  KeyPairId:
+    Description: Key pair id
+    Value: !GetAtt JumphostKeyPair.KeyPairId
