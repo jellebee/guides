@@ -5,12 +5,16 @@ TargetRegion: eu-west-1
 CloudFormationOptions:
   StackName: zbxpxy-stack #Replace with your stack name
   Tags:
+    - Key: Name
+      Value: ZbxPxyDeploy #Replace with your name
+    - Key: Description
+      Value: Deploys Zabbix Proxy to your environment #Replace with your description
     - Key: BusinessDomain
-      Value: "IT operations" #Replace with applicable tags
+      Value: IT operations #Replace with applicable tags
     - Key: SLA
-      Value: "None" # based on your SLA
+      Value: None # based on your SLA
     - Key: Stage
-      Value: "dev" # for instance dev/tst/acc/prd
+      Value: dev # for instance dev/tst/acc/prd
   Capabilities:
     - CAPABILITY_NAMED_IAM
   Parameters:
@@ -33,9 +37,9 @@ CloudFormationOptions:
     - ParameterKey: MaxSQLContainers
       ParameterValue: 1
     - ParameterKey: ServiceName
-      ParameterValue: ZbxPrx-Service #Replace with your service name
+      ParameterValue: ZbxPxy-Service #Replace with your service name
     - ParameterKey: SQLServiceName
-      ParameterValue: ZbxPrx-SQL-Service #Align this with your service name as this is recommended
+      ParameterValue: ZbxPxy-SQL-Service #Align this with your service name as this is recommended
     - ParameterKey: SQLVolumeSize
       ParameterValue: 10
     - ParameterKey: ZabbixProxyHostName #Replace with the Proxy Hostname configured in the Zabbix Host

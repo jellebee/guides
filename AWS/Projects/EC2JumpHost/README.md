@@ -1,7 +1,7 @@
 # EC2 Jumphost overview #
 
 ## Option ##
-- EC2 static instance which allows to be used as a jumphost.
+- EC2 ASG instance which allows to be used as a jumphost.
 
 ## Recommended ##
 -  Use of a default AWS image for creating a jumphost, it saves a lot of headaches using the image builder to build your own images based on (in this example) Rocky 8
