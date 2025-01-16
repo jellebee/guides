@@ -2,8 +2,11 @@
 mkdir C:\terraform
 cd C:\terraform
 
-#Download the .zip file (currently version 13.7 (to write this write 1.3.7)
-$version = Read-Host -prompt "What is the version of the terraform you would like to use? (default 1.3.7 (ver 13.7))"
+#Download the .zip file (currently version 1.10.4)
+$version = Read-Host -prompt "What is the version of the terraform you would like to use? (default 1.10.4))"
+if(-not $version){
+    $version = "1.10.4"
+}
 Invoke-WebRequest -Uri https://releases.hashicorp.com/terraform/$($version)/terraform_$($version)_windows_amd64.zip -outfile terraform_$($version)_windows_amd64.zip
 
 #Extract the zip file and remove it.
