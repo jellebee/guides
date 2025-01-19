@@ -1,0 +1,5 @@
+resources
+| where type in ('microsoft.all/virtualmachines','microsoft.compute/virtualmachines','microsoft.devtestlab/labs/virtualmachines')
+| where properties.extended.instanceView.powerState.code != 'PowerState/deallocated'
+| project name, subscriptionId, resourceGroup
+| sort by subscriptionId, resourceGroup, name
